@@ -1,0 +1,49 @@
+* Project goal: Experiments with http
+
+* Project HTTP server on port 9091
+
+- This project is supported by a locally-running httpd service configured as follows:
+  - Running as systemd:
+    - configured in
+      - /home/mzimmermann
+      - ~/.config/systemd/user/my-http-experiments-9091.service
+    - started as
+      - systemctl --user enable my-http-experiments-9091.service
+      - systemctl --user start  my-http-experiments-9091.service
+    - service
+      #+begin_example
+      [Unit]
+      After=network.target
+      #Wants=none
+      Description=Http service for http-experiments
+      Documentation=Todo, e.g. info:emacs man:emacs(1) https://gnu.org/software/emacs/
+
+      [Service]
+      ExecStart=/home/mzimmermann/dev/my-projects-source/public-on-github/http-experiments/http-server/my-server3.sh
+
+      [Install]
+      WantedBy=default.target
+  
+      #+end_example
+- The http
+
+
+* Subprojects
+
+** general
+- images-path-must-be-full.html
+-
+
+
+** burger-protocol
+
+Shows how to register a new protocol name and the site which handles the protocol.
+
+Does not include the protocol itself for now.
+
+See:
+
+- https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler/Web-based_protocol_handlers
+- file:///./http-server/burger-protocol/burger-client-self-documenting.html
+  
+

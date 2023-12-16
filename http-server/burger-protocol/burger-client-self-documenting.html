@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Web Protocol Handler Sample - Documentation</title>
+    <script>
+      // Unregister does NOT delete the "web+burger" entry, only removes the content.
+      // In Firefox:
+      //   - To view the "web+burger" entry from the browser handlers:
+      //     - Go to about:preferences#general, find applications, content type
+      //   - To delete the  "web+burger" entry from the browser handlers:
+      //     - Edit the file ~.mozilla/firefox/6hw4d98v.default-1394502256027/handlers.json
+      //navigator.unregisterProtocolHandler(
+      //"web+burger",
+      //"http://localhost:9091/burger-protocol/burger-service.html?uri=%s",
+      //);
+
+      // Registed the protocol to be 
+      navigator.registerProtocolHandler(
+        "web+burger",
+        "http://localhost:9091/burger-protocol/burger-service.html?uri=%s",
+        "Burger App",
+      );
+    </script>
+  </head>
+  <body>
+    <h1>A (Custom) Web Protocol and (Custom) Web Protocol Handler - What is it?</h1>
+
+    A (custom) <b>web protocol</b> is a convention and software which allows processing of custom link types on the web by a custom web application. A (custom) <b>web protocol handler</b> is a service which does the work of the (custom) <b>web protocol</b>. (Custom) web protocol handlers could be used for web app and PWA app communication where one app directly invokes another and passes data via custom protocol links.
+    <p/>
+    In this intro section, we prefixed 'web protocol' with 'custom' in brackets. The reason is that, often, by 'web protocol' people mean 'the http protocol'.  <b>But recently, browsers allowed to add other protocols which run 'on top of' the http protocol. This document describes such 'custom web protocols', how to add them to a web page (client side), how to implement them (service side)</b> With this understanding, we will often drop the word 'custom' in the description below. A 'web protocol' and a 'custom web protocol' mean the same thing below.
+    <p/>
+    
+    <p/>
+    This page describes
+    <ul>
+      <li>what motivates a need to add a custom web protocol</li>
+      <li>in the browser (client), how to describe, register, activate, and handle the web protocol</li>
+      <li>that the handling has both browser (client) and web application (service) phases</li>
+      <li>so we also describe how the web application (service) handles the protocol</li>
+    </ul>
+    <p/>
+    See:
+    <ul>
+      <li>https://web.dev/articles/registering-a-custom-protocol-handler</li>
+      <li>https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler/Web-based_protocol_handlers</li>
+      <li>https://developer.chrome.com/docs/web-platform/best-practices/url-protocol-handler</li>
+    </ul>
+    
+    <h2>Protocol registering TL;DR</h2>
+    
+    The script in the head of this web page
+
+    <pre><code style="background-color:#555555">
+        &lt;script&gt;
+          navigator.registerProtocolHandler(
+              // The protocol (scheme) name, to be used in an anchor such as &lt;a href="web+burger:burger_data_string"/&gt;
+            "web+burger",
+              // The URL to which a GET will be send after clicking the &lt;a href="web+burger:burger_data_string"/&gt;.
+              // In the GET, the %s is replaced with web+burger:burger_data_string,
+              //   so the service will obtain query string "uri=burger_data_string"
+              // The URL must use http or https - that makes this a 'web protocol' definition.
+              // For example, an online email service could register itself as a handler
+              //   of the web+burger: protocol, so that if the user clicks on the link,
+              //   they will use this web site to send emails.
+              // Note the anything after the ? is free, but it MUST contain a %s. Other examples:
+              //   ?data=burger_data_string
+              //   ?arg=burger_data_string
+              //   ?field=burger_data_string
+            "http://localhost:9091/burger-protocol/burger-service.html?uri=%s",
+              // human name for the protocol
+            "Burger App",
+          );
+          // Note: Clicking the 'this' anchor/link, browser asks
+          //       if to use xdg-open to open the desktop app registered to web+burger.
+          //       See xdg-open and mime on how that works.
+        &lt;/script&gt;
+    </code></pre>
+    
+    will install a web protocol handler for a new protocol named <code style="background-color:#555555">web+burger:</code> protocol. An example of an existing protocol handler would be the <code style="background-color:#555555">mailto:</code> protocol, which is also used in the text below to test an existing protocol, rather than the new protocol.
+    </p>
+    
+    <h2>Motivation</h2>
+
+    It's fairly common to find web pages link to resources using non-http protocols. One example is the <code style="background-color:#555555">mailto:</code> link when they want to provide a convenient way for users to send an email, directly from the web page.
+    <p/>
+    The mailto: protocol is typically placed in the anchor element href attribute <code style="background-color:#555555">&lt;a href="mailto:webmaster@example.com"&gt;Email the web page maintainer&lt;a&gt;</code> which results in <a href="mailto:webmaster@example.com">Email the web page maintainer</a>.
+    <p/>
+    When the link is activated, the browser should launch the <b>default desktop application</b> for handling email, and pass it the email address in some data object (which is likely a string composed from some email address, and perhaps subject). This process is coded to browsers and desktops, and we can think of it as a <b>browser-to-desktop-based</b> protocol handler.
+    <p/>
+    HOWEVER, we may want to write a <b>web based application</b> for handling email. For such web application to communicate with the browser, there must be some common understanding on the browser end and on the <b>web based email application</b> end. This 'common understanding' is called a 'protocol'.
+    <p/>
+    There need be several 'well known' pieces for the communication and processing to work:
+    <ol>
+      <li><b>protocol data object</b> with an agreed upon structure that is passed from the browser to the web application.</li>
+      <li><b>protocol algorithm</b> for constructing the 'protocol data object' (in the browser), and for parsing the 'protocol data object' (in the application)</li>
+      <li><b>web application (service)</b> running at the <b>protocol handler URL</b>, see below. This application implements the above 'protocol algorithm' for receiving and parsing of the 'protocol data object'; it also provides the UI for the user to write and send the web email.</li>
+      <li><b>protocol handler</b> which defines
+        <ul>
+          <li>protocol name</li>
+          <li>protocol URL (endpoint) which defines where the 'web application' runs</li>
+        </ul>
+      </li>
+    </ol>
+    
+    In the sections below, we introduce a example of a custom protocol and a web application (service) that COULD implement a <b>web based email application</b>. We will call this suite <b>burger</b> and name top level files using the string <b>burger-protocol</b>. We will use the following terms: <b>burger protocol handler</b> for the 'protocol handler'; <b>burger</b> for the 'protocol name'; <b>burger protocol algorithm</b> for the 'protocol algorithm'; we will use <b>burger service</b> and name files  <b>burger-service</b> for the 'web application (service)' - the service also implements the <b>burger protocol service algorithm</b>.
+    <p/>
+    
+    Some more notes on this:
+    
+    <ul>
+      <li>The client page (the page the user interacts with and initiates sending the email by 'clickin' on some link - this page) needs to
+        <ul>
+          <li>Contain code that defines (registers) the <b>burger protocol handler</b> name and URL</li>
+          <li>Contain code for the 'client side' of <b>protocol algorithm</b> which constructs the 'protocol data object'.</li>
+        </ul>
+      </li>
+      <li>The 'web application (service)' needs to be able to
+        <ul>
+          <li>Run on the 'protocol handler URL'
+            <li>Accept the 'protocol data object' (with the email address and perhaps a subject) from the page</li>
+            <li>Know how to parse the 'protocol data object' passed from the web page from which user is sending the email.</li>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    
+    <p/>
+    Web-based protocol handlers allow web-based applications to participate in the process too. This is becoming more important as more types of applications migrate to the web. In fact, there are many web-based email handling applications that could process a mailto link.
+    <p/>
+    For full article, see <a href="https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler/Web-based_protocol_handlers">https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler/Web-based_protocol_handlers</a>.
+
+    <h1>Registering</h1>
+    
+    The web application (the web page) uses the call to <code style="background-color:#555555">registerProtocolHandler()</code> to register itself with the browser as a potential handler of the protocol.
+    <p/>
+    After the browser runs the code in <code style="background-color:#555555">registerProtocolHandler()</code>, it will wait until the user clicks on a link that uses that protocol, then the browser <b>activates the protocol handling</b>.
+
+    <h1>Activating</h1>
+
+    If the page includes code like this
+    <p/>
+    <pre><code style="background-color:#555555">&lt;p&gt; &lt;a href="web+burger:burger_data_string"&gt;Click calls GET on the service app passing it web+burger:burger_data_string&lt;/a&gt; &lt;/p&gt;</code></pre>
+    <p/>
+    the browser will route the action in the href of the &lt;a&gt; element the the URL supplied where the web page registered.
+    <p/>
+    The browser MAY first prompt the user if they 'agree with activation' of the protocol redirection.
+
+    <h1>Handling</h1>
+
+    The next phase is handling the action. Handling has two phases: Phase that happens on the client (browser), and a phase that happens in the web application (service).
+
+    <h2>Client (browser) handling. The link here tests both client and service</h2>
+    
+    Upon clicking on the link which contains <b>href using the protocol</b>, the browser extracts the <b>href</b> from the activated link, combines it with the URL template supplied during handler registration and performs an HTTP GET on the URL. So, using the above examples, the browser would perform a GET on this URL:
+    <p/>
+    <code style="background-color:#555555">http://localhost:9091/burger-protocol/burger-service.html?uri=web+burger:burger_data_string</code>
+    <p/>
+    <b>Here is an example. Click on the 'this' link, and you should be taken to the page registered to handle the protocol!</b>
+    
+    <p style="background-color:#555555"><a href="web+burger:burger_data_string">Click calls GET on the service app passing it web+burger:burger_data_string</a></p>
+    <p/>
+
+    Test the above from Firefox, Chrome does not seem to register handlers on localhost.  When asked, open the link on localhost. Then you should be taken to "http://localhost:9091/burger-protocol/burger-service.html?uri=web%2Bburger%3Aburger_data_string", and result should show this other page with URI=web+burger:burger_data_string!
+    
+    <h2>Web application (service) handling</h2>
+    
+    Server side code can extract the query string parameters (burger_data_string in our situation) and perform the desired action. The server side code is passed the entire contents of the href. This means the server side code will have to parse out the protocol from the data.
+    
+
+    <h1>Limitations of Web Protocol Handlers</h1>
+    
+    Having the ability to register your app as a handler for certain schemes is really useful, but registerProtocolHandler does have some limitations.
+    <p/>
+    The biggest limitation is that you can only pass text data to the handler. This is just fine for a lot of applications but quickly becomes a problem if you need to handle more complex data types or files.
+    <p/>
+
+    Another limitation is that you <b>cannot send data back to the application where the request originated</b>. The current implementation of registerProtocolHandler is very much ‘fire-and-forget’ from the calling applications perspective.
+      <p/>
+      MZ - so, basically, registering and using a protocol handler like this
+      <p/>
+      &lt;a href="web+burger:burger_data_string"&gt;this burger_data_string&lt;/a&gt; before?&lt;/p&gt;
+      <p/>
+      is fully equivalent to
+      <p/>
+      &lt;a href="http://localhost:9091/burger-protocol/burger-service.html?uri=web+burger:burger_data_string" &gt; &lt;/a&gt; &lt;/p&gt; with no registration at all!!!
+      <p/>
+
+    
+  </body>
+</html>

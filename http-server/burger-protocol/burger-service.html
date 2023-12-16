@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Web Protocol Handler (Service) Sample</title>
+  <script>
+    function getQueryVariable(variable)
+    {
+      var query = window.location.search.substring(1);
+      var vars = query.split("&");
+      for (var i=0;i<vars.length;i++) {
+        var pair = vars[i].split("=");
+        if(pair[0] == variable){return pair[1];}
+      }
+      return("");
+    }
+  </script>
+</head>
+<body>
+  <h1>Web Protocol Handler (Service) Sample - Handler</h1>
+
+  <p>This web page is the service (handler) for the <code>web+burger:</code> protocol. It's GET is called after click in the client page burger-client-self-documenting.html.</p>
+
+  <!-- Simple example to include text from the CGI script in this web page. -->
+
+  <p/>
+  The object calling the burger-service-cgi.py is below vvv
+  <p/>
+  <object id="burger-service-cgi.py" type="text/html" data="/burger-protocol/cgi-bin/burger-service-cgi.py"></object>
+  <p/>
+  The object calling the burger-service-cgi.py is above ^^^
+  <p/>
+  If the result shows a uri = web+burger:burger_data_string, things worked as expected, otherwise there was some issue.
+  <p/>
+
+  <!-- This code is needed to pass the query param uri from this HTML to the CGI. -->
+  <script>
+    const objectElm = document.querySelector('object');
+    // alert('objectElm=' + objectElm + ' data=' + objectElm.getAttribute('data'));
+    objectElm.setAttribute('data', objectElm.getAttribute('data') + "?uri=" + getQueryVariable("uri"));
+    // alert('objectElm=' + objectElm + ' data=' + objectElm.getAttribute('data'));
+  </script>
+
+</body>
+</html>
+
+<!-- Object element answer from AI on Mozilla
+
+     The <object> HTML element represents an external resource, which can be treated as an image, a nested browsing context, or a resource to be handled by a plugin.
+     
+     Below is an example of an HTML file that contains an <object> element. The <object> element is used to embed objects such as images, audio, videos, Java applets, ActiveX, PDFs, and Flash in your web pages. You can specify the data and type of object using the data and type attributes, respectively.
+
+     Here's a simple HTML file example embedding a PDF file using the <object> element:
+
+     HTML
+
+     Queue
+     Play
+     <!DOCTYPE html>
+     <html lang="en">
+     <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Object Element Example</title>
+     </head>
+     <body>
+     <h1>Embedded PDF Example</h1>
+     
+     <object data="example.pdf" type="application/pdf" width="600" height="400">
+
+     <p>It appears you don't have a PDF plugin for this browser. You can <a href="example.pdf">click here to download the PDF file.</a></p>
+     </object>
+     </body>
+     </html>
+     In this example, the <object> element is used to embed a PDF file named example.pdf. If the browser is unable to display the PDF file, it will show the text inside the <object> element, which in this case is a message informing the user that they don't have a PDF plugin and provides a link to download the PDF file.
+
+     Please note that the data attribute should point to the actual location of the PDF file you want to embed. The type attribute specifies the media type of the object, which in this case is application/pdf. The width and height attributes are used to set the size of the embedded object.
+
+     For more information on the <object> element, you can refer to the MDN documentation on the <object> element.
+
+
+-->
